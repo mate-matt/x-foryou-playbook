@@ -1,35 +1,35 @@
 # 02 · 权重与公式
 
-数字只来自公开源码，不来自二手图表。两份文件用同一套 feature switch 键，但**写在仓库里的默认字面量并不完全一样**。读的时候要分开。
+这里列出的数字全部来自官方开源代码，不参考任何二手图表。代码库里有两份核心参数文件，它们共用同一套 feature switch key，但**写死在仓库代码里的默认字面量并不完全一致**，阅读时需要区分开来。
 
 | 文件 | 角色 |
 | --- | --- |
-| [`home-mixer/params/param.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/home-mixer/params/param.rs) | 文件头写明 `mirrored from config feature-switch defaults; last sync 2026-11-02T16:00:39Z`。本地加权分读这里。下面「主表」用这份。 |
-| [`vm-ranker/params.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/vm-ranker/params.rs) | 没有 last-sync 注释。`VMRanker` 重算价值模型时，开关没下发就用这里的字面量。多样性、站外折扣只在这份里有默认值。 |
+| [`home-mixer/params/param.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/home-mixer/params/param.rs) | 文件头明确标注了 `mirrored from config feature-switch defaults; last sync 2026-11-02T16:00:39Z`。本地加权打分就是读取这里的配置，下文的「主表」也以这份文件为准。 |
+| [`vm-ranker/params.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/vm-ranker/params.rs) | 没有 last-sync 同步注释。当 `VMRanker` 重新计算价值模型且线上配置没下发时，会回退使用这里的字面量。多样性衰减和站外折扣的默认值只存在于这份文件中。 |
 
-运行时如果配置服务下发了同一个键，两边都会用下发值，仓库里的字面量只是缺省。README 说 cron 会把主要生产值镜像进仓库，并举了 `param.rs` 为例。所以本手册把 **param.rs 当作 2026-11-02 的镜像快照**，并把 vm-ranker 对不上的 5 个键单独列出来，不把它们揉成一个数。
+在生产运行时，如果配置服务下发了对应 key 的值，两边都会优先使用动态下发的值，仓库里的字面量仅仅是兜底默认值。README 提到系统有定时任务（cron）会把线上主力生产配置镜像同步到仓库，并特别拿 `param.rs` 举了例。因此，本文把 **param.rs 视为 2026-11-02 的镜像快照**；至于 vm-ranker 中对不上的 5 个 key，我们会单独列出对比，而不是简单粗暴地混为一个数字。
 
 ## 先把公式说对
 
-Phoenix 预测的是「这个读者对这条帖做出某个动作的概率」，或一个连续量（比如停留时长）。[`xai-value-model/scoring.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/xai-value-model/scoring.rs) 里写得很直：
+Phoenix 模型预测的本质上是「当前读者对这条推文做出某种行为的概率」，或者是一个连续数值（比如停留时长）。[`xai-value-model/scoring.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/xai-value-model/scoring.rs) 里的打分逻辑非常直白：
 
 ```text
 项 = 预测值 × 权重
 加权和 = 各项目之和
 ```
 
-权重乘的是预测，不是这条帖已经拿到的喜欢数、转发数。源码注释和 README（2026-08-14）都点名一种误读：「1 次举报抵消 468 个喜欢」。468 正好是 `234 / 0.5`。`0.5` 是 vm-ranker 里 `FavoriteWeight` 的旧字面量；param.rs 镜像快照里喜欢的权重已经是 `0.66`。即便拿今天的 `234 / 0.66` 去除，得到的也只是两个系数的比，仍然不是「举报次数和喜欢次数可以互换」。
+这里要注意：权重乘的是**模型预测的概率**，而不是这条推文已经累计获得的喜欢数或转推数。官方源码注释和 2026-08-14 的 README 都专门辟谣了一种常见误读，即所谓的「被举报 1 次相当于抵消 468 个喜欢」。468 这个数正好是 `234 / 0.5`，其中 `0.5` 只是 vm-ranker 里 `FavoriteWeight` 早期写死的字面量，而在 param.rs 的最新镜像快照里，喜欢的权重早就变成了 `0.66`。退一步说，就算拿现在的 `234 / 0.66` 去算，除出来的也只是两个模型特征权重的比例，绝不能理解成「线上举报次数和喜欢次数能直接 1:1 抵消」。
 
-源码还给了两个原因，这里照意思写，不改数字：
+关于这一点，源码给出了两个核心逻辑，意思大致如下（保留数值）：
 
-- 举报的基线概率比喜欢低 1000 倍以上，所以权重要大，预测才影响得了排序。
-- 算的是**这个读者**做这件事的概率，不是把全网的举报次数乘上去。相似的人互相影响更大。而且只有出现在 Home 时间线里的行为才进这套推荐；从群里点进来刷，对这条排序没有那份计数。
+- 用户举报的基线先验概率比点赞喜欢低 1000 倍以上，所以权重的绝对值必须给得足够大，模型的预测值才能真正对排序产生影响。
+- 打分算的是**眼前这位特定读者**发生该行为的概率，而不是把全网已经产生的举报数直接乘进去。协同过滤中兴趣相似的人群影响更大；而且只有发生在 Home 信息流中的行为才会计入这套推荐模型，如果是从群组或外链点进来看推，根本不会计入这个排序的特征统计。
 
-`apply` 的实现是：预测缺失就当 0，再乘权重。
+代码中 `apply` 的具体实现也很直接：如果某个预测项缺失，就当作 0 处理，然后再乘以对应权重。
 
 ## 主表 · param.rs（2026-11-02 镜像）
 
-正向，按绝对值从大到小。
+正向权重（按绝对值从大到小排列）：
 
 | 标识 | 默认 | feature switch |
 | --- | --- | --- |
@@ -52,7 +52,7 @@ Phoenix 预测的是「这个读者对这条帖做出某个动作的概率」，
 | `PostUnexploredWeight` | 0.015 | `rust_home_mixer_post_unexplored_weight` |
 | `ContDwellTimeWeight` | 0.006 | `rust_home_mixer_cont_dwell_time_weight` |
 
-负向：
+负向权重：
 
 | 标识 | 默认 | feature switch |
 | --- | --- | --- |
@@ -62,7 +62,7 @@ Phoenix 预测的是「这个读者对这条帖做出某个动作的概率」，
 | `BlockAuthorWeight` | −31.2 | `rust_home_mixer_block_author_weight` |
 | `NotDwelledWeight` | −0.02 | `rust_home_mixer_not_dwelled_weight` |
 
-公开默认就是 0，这一项目前不加不减：
+公开代码中默认值为 0 的项（当前既不加分也不扣分）：
 
 | 标识 | 默认 |
 | --- | --- |
@@ -72,13 +72,13 @@ Phoenix 预测的是「这个读者对这条帖做出某个动作的概率」，
 | `PostVideoWeight` | 0.0 |
 | `BidirectionalFollowDwellWeightBoost` | 0.0 |
 
-`BidirectionalFollowReplyWeightBoost` 不是单独的预测头。它在条件满足时**加到回复权重上**。见下一节。
+说明：`BidirectionalFollowReplyWeightBoost` 并不是一个独立的模型预测头，而是当满足特定条件时，**直接叠加到回复权重上**，具体见下一节说明。
 
-连续项（`dwell_time`、`click_dwell_time`）乘的是预测的时长，不是 0 到 1 的概率。所以 `0.006` 和 `0.4` 不能跟「喜欢 0.66」横着比大小，单位不一样。
+另外，连续项（如 `dwell_time`、`click_dwell_time`）乘以的是模型预测的时长（秒数），而不是 0 到 1 之间的概率。所以像 `0.006` 和 `0.4` 这类系数不能直接跟「喜欢 0.66」横向比大小，因为它们的量纲完全不同。
 
 ## vm-ranker 字面量和主表对不上的 5 个键
 
-同一条 feature switch，两份文件的缺省不同。重算价值模型、又没有配置下发时，用的是右列。
+对应同一条 feature switch，两份文件里硬编码的兜底默认值并不一样。在 vm-ranker 重新打分、且没有配置中心下发动态值时，会走右侧这一列的值：
 
 | 键 | param.rs（有 last sync） | vm-ranker/params.rs |
 | --- | --- | --- |
@@ -88,38 +88,38 @@ Phoenix 预测的是「这个读者对这条帖做出某个动作的概率」，
 | `PostUnexploredWeight` | 0.015 | 0.02 |
 | `NotInterestedWeight` | −52.272 | −47.52 |
 
-其余主表里的权重，两份文件的字面量一致（含复制链接 20、回复 5、举报 −234、互关回复加成 15）。
+除了这 5 项之外，主表里的其他权重在两份文件中的字面量完全一致（包括复制链接 20、回复 5、举报 −234、互关回复加成 15 等）。
 
-只出现在 vm-ranker、主表没有的项，公开默认全是 0：`VideoContinuationWeight`、`UserVideoContinuationWeight`、`ProfileVisitSecsWeight`。公式里留了位置（视频打开概率 × 续看秒数，再乘权重），默认乘出来仍是 0。
+还有一些项只出现在 vm-ranker 中、主表里根本没有，但它们在公开代码里的默认值全都是 0：比如 `VideoContinuationWeight`、`UserVideoContinuationWeight`、`ProfileVisitSecsWeight`。虽然公式里留好了坑位（视频打开概率 × 续播秒数，再乘以权重），但由于默认权重是 0，乘完后依然不产生实际得分。
 
-## 互关加成怎么加上去
+## 互关加成是怎么生效的
 
-[`docs/BIDIRECTIONAL_BOOST_CHANGE.md`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/docs/BIDIRECTIONAL_BOOST_CHANGE.md) 和 [`xai-value-model/weights.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/xai-value-model/weights.rs) 的 `reply_weight_for`：
+参考 [`docs/BIDIRECTIONAL_BOOST_CHANGE.md`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/docs/BIDIRECTIONAL_BOOST_CHANGE.md) 以及 [`xai-value-model/weights.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/xai-value-model/weights.rs) 中的 `reply_weight_for` 函数：
 
-- 加成不是 0，并且这条帖**不是回复、不是转帖**，作者和读者**互相关注**，回复权重变成 `ReplyWeight + Boost`。按两份文件现在的字面量，就是 `5 + 15 = 20`。
-- 回复和转帖不加，即便作者是互关。
-- 停留加成 `BidirectionalFollowDwellWeightBoost` 默认 0。代码要求加成不为 0 才改停留权重，所以默认路径上停留仍是 0.05。文档写明：停留加成做过实验，没有按回复加成那样铺开。
-- 时间线（文档原文）：2026-07-10 小流量试过 5、10、15、20（当时多数人是 0）；07-13 许多人收到 20；07-24 改成 15。
+- 只要加成值不为 0，且当前推文**既不是回复也不是转推**，同时作者与读者处于**互相关注**状态，回复的权重就会直接变为 `ReplyWeight + Boost`。按照目前两份文件里的字面量计算，也就是 `5 + 15 = 20`。
+- 如果推文本身就是一条回复或转推，则不会触发加成，哪怕作者与读者确实是互关。
+- 停留时长的互关加成 `BidirectionalFollowDwellWeightBoost` 默认是 0。代码逻辑要求加成必须不为 0 才会去调整停留权重，所以在默认路径下，停留权重依然保持原本的 0.05。文档中也注明：官方对停留加成做过实验，但并没有像回复加成那样全面上线。
+- 演进时间线（来自文档原话）：2026-07-10 曾小流量测试过 5、10、15、20 等不同挡位（当时大部分用户为 0）；07-13 开始大面积灰度 20；最终在 07-24 调整并定格为 15。
 
-互关标记来自 `BidirectionalFollowHydrator`：读者关注了作者，并且社交图确认作者也关注读者。`EnableBidirectionalFollowHydration` 默认 true。
+互相关注的判定标记由 `BidirectionalFollowHydrator` 提供：需要读者关注了作者，并且社交图谱服务确认作者也反向关注了读者。该功能的开关 `EnableBidirectionalFollowHydration` 默认处于打开状态（true）。
 
-## 负分被抬进一个很小的正偏移
+## 负分被平移到一个极小的正偏移量
 
-`NEGATIVE_SCORES_OFFSET = 0.001`（`xai-value-model/weights.rs`，`home-mixer/params/config.rs` 里也有同名常量）。
+代码中定义了常量 `NEGATIVE_SCORES_OFFSET = 0.001`（位于 `xai-value-model/weights.rs`，同时 `home-mixer/params/config.rs` 中也有同名定义）。
 
-`offset_score`：
+具体的打分平移函数 `offset_score` 逻辑如下：
 
-- 正负权重之和为 0 时，加权和小于 0 就变成 0。
-- 加权和小于 0：`(加权和 + 负向权重绝对值之和) / 全部权重绝对值之和 × 0.001`。
-- 否则：`加权和 + 0.001`。
+- 如果所有正向和负向权重之和为 0，那么只要加权总分小于 0，就会直接归零。
+- 如果加权总分小于 0：会按公式 `(加权和 + 负向权重绝对值之和) / 全部权重绝对值之和 × 0.001` 将其平移压缩到 `[0, 0.001)` 之间。
+- 如果加权总分大于等于 0：则简单地执行 `加权和 + 0.001`。
 
-负向权重绝对值之和只加这五项：不感兴趣、屏蔽、静音、举报、未停留。复制链接这类正向权重不进这个负向之和。
+注意：这里的「负向权重绝对值之和」仅累加这五项：不感兴趣、屏蔽、静音、举报、未停留。像复制链接这类正向权重绝不会混进这个负向绝对值总和里。
 
-## 作者多样性
+## 作者多样性打折（Author Diversity）
 
-只在 vm-ranker 重算时按参数生效。home-mixer 本地那一版把 `enable_author_diversity` 写死为 false，衰减和地板写死为 1.0，等于不衰减。
+这一机制只在 vm-ranker 阶段根据参数生效。在 home-mixer 本地初排那一版实现中，`enable_author_diversity` 被硬编码写死为了 false，对应的衰减系数和保底底线也都写死为 1.0，相当于完全不做多样性惩罚。
 
-vm-ranker 公开默认：
+而在 vm-ranker 中，开源代码的默认配置如下：
 
 | 参数 | 默认 |
 | --- | --- |
@@ -127,13 +127,13 @@ vm-ranker 公开默认：
 | `AuthorDiversityDecay` | 0.5 |
 | `AuthorDiversityFloor` | 0.25 |
 
-公式（`diversity_multiplier`）：
+衰减计算公式（`diversity_multiplier`）：
 
 ```text
 multiplier(k) = (1 - floor) × decay^k + floor
 ```
 
-`k` 是同一作者里，按调整前分数从高到低，排在这条前面的帖数。第一条 `k = 0`，乘数是 1。用默认值：
+其中 `k` 表示同一个作者的所有候选推文中，按照调整前打分从高到低排序时，排在当前推文前面的数量。对于该作者的第一条推文，`k = 0`，计算出的乘数就是 1。带入默认参数后的具体衰减梯度如下：
 
 | 同一作者里的名次 | k | 乘数 |
 | --- | --- | --- |
@@ -142,11 +142,11 @@ multiplier(k) = (1 - floor) × decay^k + floor
 | 第 3 条 | 2 | 0.4375 |
 | 再往后 | 更大 | 往 0.25 靠 |
 
-## 站外折扣（OON）
+## 站外推文折扣（OON / Out-Of-Network）
 
-`post_fusion_multipliers`：站外帖（`in_network == Some(false)`）乘 `effective_oon_weight`。站内的**回复和转帖**，在 `EnableOonRescoreForInNetworkRepliesRetweets = true`（vm-ranker 默认）时也乘这个系数。站内原创不乘。`in_network` 缺失则不乘（当 1）。
+在 `post_fusion_multipliers` 处理逻辑中：站外推文（即 `in_network == Some(false)`）的分数会乘以一个折损系数 `effective_oon_weight`。对于站内的**回复和转推**，当开关 `EnableOonRescoreForInNetworkRepliesRetweets = true`（vm-ranker 默认开启）时，也会被视同站外推文乘以这个折扣；但站内原创推文绝不会被打折。如果推文的 `in_network` 字段缺失，则不做折扣（系数按 1 处理）。
 
-`effective_oon_weight` 的取值（`vm-ranker/scoring/value_model.rs`）：
+`effective_oon_weight` 的具体取值规则（见 `vm-ranker/scoring/value_model.rs`）：
 
 | 情况 | 默认系数 |
 | --- | --- |
@@ -154,17 +154,17 @@ multiplier(k) = (1 - floor) × decay^k + floor
 | 话题请求 | `TopicOonWeightFactor = 0.5` |
 | 账号年龄小于 `NewUserAgeThresholdSecs` 且关注数 ≥ 5 | `NewUserOonWeightFactor = 0.00001` |
 
-`NewUserAgeThresholdSecs` 默认是 **0**。年龄不会小于 0，所以这条「新用户站外几乎乘成 0」的分支，在公开默认下不会打开。不要把它写成现行规则。常量 `NEW_USER_MIN_FOLLOWING = 5` 只在阈值大于 0 时才有意义。
+这里需要特别关注：`NewUserAgeThresholdSecs` 的默认值其实是 **0**。由于账号注册时长不可能小于 0，因此在公开默认配置下，那个「新用户刷到站外推文打折到几乎归零」的惩罚分支根本不会被触发。千万别把它当成线上正在生效的铁律。代码里的常量 `NEW_USER_MIN_FOLLOWING = 5`，也只有在该时间阈值被配置为大于 0 时才真正有意义。
 
-`MultiplierPreOffset` 默认 false：多样性系数和站外系数乘在**已经加过 0.001 偏移之后的分数**上。为 true 时，先去掉偏移，只对非负的净值乘系数，负的净值不乘，再偏移回去。公开默认走前一种。
+另外，`MultiplierPreOffset` 默认是 false：这意味着多样性乘数和站外折损系数，是直接乘在**已经加完 0.001 偏移量的最终分数**上的。只有当该开关设为 true 时，系统才会先减去偏移量，仅对非负的净得分应用乘数（负分净值不乘），最后再把偏移量加回去。公开默认实现走的是前者。
 
-`AuthorExplorationBonus` 默认 0.0。它是按作者规则加到去偏移之后的净值上的，不是冷启动。冷启动是另一套，见下。
+至于 `AuthorExplorationBonus`，其默认值是 0.0。它是按作者维度直接加在去掉偏移后的净分上的探索奖励，并不是新推文冷启动逻辑。真正的冷启动是另一套独立机制，见下文。
 
-## 冷启动（新帖抬升）
+## 冷启动机制（新推文提权）
 
-README 说的 new-author boost，对应 [`home-mixer/scorers/author_cold_start.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/home-mixer/scorers/author_cold_start.rs)，不是上面那个默认 0 的 exploration bonus。
+README 中提到的 new-author boost，对应的代码实现是 [`home-mixer/scorers/author_cold_start.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/home-mixer/scorers/author_cold_start.rs)，而不是上面那个默认设为 0 的 exploration bonus。
 
-公开默认（都在 param.rs）：
+开源公开的默认配置（均定义在 param.rs 中）：
 
 | 参数 | 默认 |
 | --- | --- |
@@ -179,41 +179,41 @@ README 说的 new-author boost，对应 [`home-mixer/scorers/author_cold_start.r
 | `ColdStartTsTopK` | 2 |
 | `ColdStartImpressionScale` | 1.0 |
 
-一条帖要同时满足才会被考虑：原创（不是回复、不是转帖）；作者粉丝数 ≤ 50000；帖龄 ≤ 7200 秒；Home 上的展示次数 `< 200`；在非零分里的名次还没差到 `0.97 × 非零条数` 之外。
+一条推文必须同时满足以下所有硬性门槛，才会被冷启动机制纳入候选池：必须是原创（非回复、非转推）；作者粉丝数 ≤ 50000；发布时间 ≤ 7200 秒（2小时内）；在 Home 流上的累计曝光量 `< 200`；在当前所有非零分推文的初排中，名次不能跌出 `0.97 × 非零条数` 之后。
 
-目标槽：`slot_min .. slot_max`，也就是只剩下标 15 这一个位置（第 16 名那个分数）。候选不够 16 条非零分时，这段是空的，这次不抬。被选中的那条分数变成 `max(自己的分, 目标位置的分)`。
+目标提权槽位区间为 `slot_min .. slot_max`，由于是左闭右开区间 `15 .. 16`，实际上只锁定了下标 15 这一个固定位置（即对应排在第 16 名的那条推文的分数）。如果当前候选池里得分大于 0 的推文总数不足 16 条，该区间就是空的，本轮便不会触发任何提权。一旦有推文被选中提权，它的最终得分会更新为 `max(自己的分, 目标位置的分)`。
 
-谁被选中：默认走 Thompson sampling。用 Home 展示和喜欢数更新 Beta(0.75, 49.25)，抽出奖励，留下抽样最高的 2 条，再在这 2 条里取**真实排序分**更高的那条。喜欢数被帽在展示数之内。
+具体哪条推文能被选中：系统默认采用汤普森采样（Thompson sampling）。代码以推文在 Home 流上的真实曝光数和喜欢数作为先验反馈，更新 Beta(0.75, 49.25) 分布并抽取奖励得分，筛选出采样值最高的前 2 条，接着再在这 2 条里挑选**原始真实排序分**更高的一条胜出。为了防止异常数据，点赞数在计算时会被严格截断在曝光数之内。
 
-读者分臂：`PhoenixMoeCodivertViewerIsTreatment` 和 `IsControl` 默认都是 false，于是臂是 Holdout。Holdout 不按作者对照桶过滤。对照/实验臂才会只抬对应桶里的作者。那两个开关默认关着。
+读者分桶实验：控制开关 `PhoenixMoeCodivertViewerIsTreatment` 与 `IsControl` 默认全为 false，因此当前读者默认处于 Holdout 实验臂。在 Holdout 臂下，系统不会按作者的对照桶进行前置过滤；只有在明确划入实验臂或对照臂时，系统才会只提权对应分桶里的作者。这两个实验开关默认都是关闭的。
 
-抬升下标会随着请求送到 vm-ranker。价值模型重算时，`apply_cold_start_decisions` 可以再次把该下标的分数抬到目标名次。
+选中的冷启动提权位置下标会随请求透传给 downstream 的 vm-ranker。在价值模型重算阶段，`apply_cold_start_decisions` 会再次把该下标对应推文的分数强行拉平到目标位次。
 
-## DPP 重排
+## DPP 多样性重排
 
-README：VMRanker 用候选嵌入做一个 determinantal point process，用掉一点分数，换相邻帖不要太像。
+README 提到：VMRanker 会利用候选推文的向量表征（embedding）运行一套行列式点过程（DPP）重排算法，牺牲少许排序分，以换取相邻推荐结果不要过度相似。
 
-源码要两层都开，才会真的跑：
+不过，从源码实现来看，DPP 必须在两层开关同时满足时才会真正运行：
 
-- 进程参数 `--dpp-enabled`，[`vm-ranker/args.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/vm-ranker/args.rs) 默认 **false**。没这个上下文，后面的开关不会单独把 DPP 叫起来。
-- feature switch `DppEnabled` 默认 **true**；话题流还要 `TopicDppEnabled`，默认 false，所以话题请求默认不做 DPP。
-- `DppTheta = 0.65`，`DppMaxSelectedRank = 150`。
-- `--dpp-top-k` 的进程默认是 50；`--dpp-theta` 进程默认 0.5，但一旦读到 feature switch，theta 会被开关盖成 0.65。
+- 首先是进程级命令行参数 `--dpp-enabled`，在 [`vm-ranker/args.rs`](https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/vm-ranker/args.rs) 里默认是 **false**。如果启动时没有带上这个上下文参数，后面的动态开关根本无法唤醒 DPP 逻辑。
+- 其次是 feature switch 开关 `DppEnabled`，虽然它默认是 **true**；但在话题信息流场景下，还额外受 `TopicDppEnabled` 开关控制（默认是 false），因此话题请求在默认配置下根本不做 DPP。
+- 参数方面，`DppTheta = 0.65`，`DppMaxSelectedRank = 150`。
+- `--dpp-top-k` 的进程级默认值是 50；`--dpp-theta` 进程级默认值是 0.5，但只要读取到了 feature switch，theta 就会被动态配置覆盖成 0.65。
 
-仓库没有写生产进程是否带了 `--dpp-enabled`。本手册只写：README 描述了 DPP；公开默认里，开关是开的，进程旗标是关的。不要把「一定在做 DPP」写成已核对的事实。
+开源仓库并没有说明其线上生产部署时是否显式传递了 `--dpp-enabled` 参数。因此这里必须严谨表述：README 确实描述了 DPP 机制；但在公开的默认代码中，动态业务开关虽然打开了，底层的进程启动开关却是关闭的。千万不要把「线上一定在跑 DPP」当成已验证的既定事实。
 
-`WeightPerturbationSigma` 默认 0，权重扰动默认不发生。`UserDebiasEnabled` 默认 false。
+另外，`WeightPerturbationSigma` 默认是 0，意味着权重随机扰动默认是不启用的；`UserDebiasEnabled` 默认也是 false。
 
-## Premium / Blue
+## Premium / Blue 蓝标加成
 
-在已公开的价值模型权重、`home-mixer/scorers/`、以及 `phoenix/` 的检索里，**没有** Premium 或 Blue 认证作为排序乘数。
+在目前已公开的价值模型打分权重、`home-mixer/scorers/` 目录源码，以及 `phoenix/` 的检索召回实现中，**根本不存在**任何针对 Premium 或 Blue 蓝标认证账号的直接排序乘数加权。
 
-订阅和 Premium 出现在可见性一侧：订户专属帖进不了未订阅读者的候选（`IneligibleSubscriptionFilter`），年龄验证里有 IDV Premium 这样的观众属性。那是「给不给看」，不是把分数乘一个蓝标系数。若生产模型在未公开的特征里用了认证，这份仓库没有写出那个乘数。这里记为：**公开打分权重中不存在。**
+订阅与 Premium 状态目前仅体现在内容曝光准入门槛（可见性）层面：比如会员专属推文绝对不会进入非订阅用户的候选池（由 `IneligibleSubscriptionFilter` 负责拦截），或者在年龄核验逻辑中包含了 IDV Premium 等受众属性。这些属于「有没有资格被展示」的硬性过滤，而不是在最终得分上乘以一个所谓的蓝标系数。如果其实际线上生产模型在未公开的模型特征侧引入了认证特征，那至少在这套开源代码库中并未呈现任何乘数。结论明确记为：**公开打分权重体系中不存在该加成。**
 
-## 2026 年 10 月 README 里和排序有关的更新
+## 2026 年 10 月 README 中与推荐排序相关的更新
 
-- 10 月 8 日：Phoenix 排序模型把「你会在这条帖上花多久」估得更好，见 `phoenix/xrex/models/loss_recsys.py`、`recsys_model.py`。
-- 10 月 13 日：Phoenix 召回也开始朝「有人会读完」训练，见 `phoenix/xrex/models/recsys_two_tower_model.py`。
-- 10 月 26 日：`Brazil2026ElectionFilter` 已从 For You 移除。不要把它写成仍在过滤。
+- 10 月 8 日：Phoenix 排序模型优化了对「用户在推文上的停留时长」的预测精度，具体改动参见 `phoenix/xrex/models/loss_recsys.py` 与 `recsys_model.py`。
+- 10 月 13 日：Phoenix 召回阶段也开始以「吸引读者完整读完」为目标进行训练，具体实现参见 `phoenix/xrex/models/recsys_two_tower_model.py`。
+- 10 月 26 日：已从 For You 信息流中正式移除了 `Brazil2026ElectionFilter` 过滤器，不要再误以为该过滤规则仍在运行。
 
-这些是训练目标的变化，不是 param.rs 里某一格权重被改成了新的公开数字。仓库没有在这次更新里给出一套新的权重表。
+需要特别说明的是：上述改动属于底层模型训练目标或管道过滤器的调整，并没有把 param.rs 里的具体打分权重更新为另一套公开数字。仓库在此次更新中并未发布任何全新的权重对照表。

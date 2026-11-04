@@ -29,17 +29,13 @@
 python3 -m http.server 8080
 ```
 
-站点文件已经在 `main` 的根目录。当前令牌没有仓库管理权限，Pages 设置接口返回 403，所以线上地址还要在仓库里打开一次：
+站点文件在 `main` 根目录，GitHub Pages 已从 `main` `/ (root)` 发布：
 
-1. 打开 <https://github.com/mate-matt/x-foryou-playbook/settings/pages>
-2. Build and deployment 选 **Deploy from a branch**
-3. Branch 选 `main`，文件夹选 `/ (root)`，保存
-
-保存后的地址是 <https://mate-matt.github.io/x-foryou-playbook/>。若改成 GitHub Actions 作为来源，可手动运行 `.github/workflows/pages.yml`。在设置打开之前，这个地址会是 404。
+<https://mate-matt.github.io/x-foryou-playbook/>
 
 ## 关于中文
 
-环境里没有 `agy` 或 `gemini`，也没有可用的 Gemini 密钥，所以没有做单独的 Gemini 润色。中文是按源码直接写的。标识符、权重和链接保持原样。
+`docs/` 下的调研笔记已经过本机 Gemini（`agy` + `gemini-3.8-flash-medium`）润色：只改叙述句，**权重数字、路径、标识符、URL 保持原样**。页面 `index.html` 仍是源码核对后的原版中文。
 
 ## 不要误用
 
