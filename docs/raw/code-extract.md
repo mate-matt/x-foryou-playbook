@@ -91,4 +91,4 @@ No Premium/Blue multiplier in value-model weights, home-mixer scorers, or phoeni
 
 ## Not found
 
-No published rank multiplier named premium or blue. No ShadowCreed string in x-algorithm. Radar methodology page does not define an engagement subscore inside the 4-check score.
+No published rank multiplier named premium or blue. No ShadowCreed string in x-algorithm. Radar methodology page scores only the 4 checks. ShadowCreed is documented on shadowbanradar.com/tweepcred-score as a separate public-signal estimate (profile 68 + activity 32), shown only when those checks are clean. 2026-11-04 research snapshot for @mate_mattt: No shadowban detected, ShadowCreed 60/100 Solid.

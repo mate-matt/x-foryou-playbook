@@ -1,136 +1,147 @@
 # 05 · Shadowban Radar 可信度
 
-这一章回答一个窄问题：第三方站点 [Shadowban Radar](https://shadowbanradar.com/) 能不能告诉你「For You 为什么没量」。
+研究日：2026-11-04（Asia/Shanghai）。  
+对象：[Shadowban Radar](https://shadowbanradar.com/)。  
+这一章把当时的可靠性评估收成中文，并和 [x-algorithm](https://github.com/xai-org/x-algorithm) 的可见性 / 排序分界对在一起。方法论页：<https://shadowbanradar.com/methodology>（页面 Open Graph 标记 2026-11-02）。对照页：<https://shadowbanradar.com/x-under-the-hood>。
 
-结论先写在这里。
+环境里仍然没有 Gemini CLI，中文是按这份研究直接写的，链接和数字没有改。
 
-**它适合当作公开硬可见性的辅助证据**：搜索建议、搜索、幽灵回复、回复被压到对话底部。这四项是对 X 公开输出的观察。
+## 执行结论
 
-**它不是官方 shadowban 的证明。** X 没有向任何人提供一个叫 shadowban 的开关，这个工具也读不到。
+有用，置信度中等。适合当作一份**带日期的公开表面快照**，不适合当作终局判决。
 
-**它不能解释 For You 曝光低。** 四项都是 Clear / 通过时，低曝光落在排序和早期互动上，不落在这四项能看见的限制上。
+它做四项检查：搜索建议、搜索、幽灵回复、回复降权。证据不够就标 Untestable，而不是猜。这是它比含糊的「限流分」强的地方。
 
-研究依据是工具自己的方法论页，加上本仓库对 [x-algorithm](https://github.com/xai-org/x-algorithm) 的核对。方法论原文：<https://shadowbanradar.com/methodology>。和 Under the Hood 的对照页：<https://shadowbanradar.com/x-under-the-hood>。页上的 Open Graph 版本标记为 2026-11-02。本手册核对日 2026-11-04。
+它**不是**官方执法，**不是** For You 的排序质量，**也不是**内部可见性标签。ShadowCreed 只是用公开信号估出来的账号权重。回复降权和搜索的瞬时失败，是误报的主要来源。只作用于推荐、不作用于搜索的标签，以及排序分整体变低，是漏报的主要来源。站点自己统计里大约四成受检账号至少有一项限制，那是来查的人里的比例，不是全站患病率。
 
-## 它到底测了什么
+和 Under the Hood 是互补，不是替代。Under the Hood 是符合条件的登录主人看到的**上一个月**官方标签。Radar 是任意公开账号**此刻**的搜索和对话。时间窗和表面都不同，两边打架时可以同时为真。
 
-站点写明：每一条结论都来自 X 的公开数据，经数据提供方读取 X 对任何人提供的搜索结果和对话串。不从浏览量或互动数推断，不需要登录或密码。每次结果标明数据是何时读取的。
+四项都过，解释不了低曝光。硬可见性（搜索里没有、回复从对话里消失）和软排序（Phoenix 预测、互动、作者多样性）不是同一件事。四项通过时，去看内容和排序，不要去找「解封」。
 
-分数只来自 4 项检查。一项测不了，就标 Untestable，而不是猜。
+## 四项检查
 
-### 1. 搜索建议（search suggestion ban）
+数据来自 X 对任何人给出的搜索和对话，经他们的数据提供方读取。不登录，不读内部旗标，也不从浏览量倒推这四项。
 
-别人输入名字或 handle 时，账号还出不出现在下拉建议里。出现或不出现，是二元观察。
-
-测不到：不同搜索者会不会看到不同建议；「被压低一点但还在列表里」这种中间态。
-
-置信度：检查跑起来时始终为高。搜索没有可用响应时返回 Untestable，那不是「证明被限制」。
-
-### 2. 搜索（search ban）
-
-账号最近的帖，在搜索里还回不来。回得来就通过；最近的公开帖都缺失，算搜索限制。
-
-测不到：个性化的搜索排序。它只看帖在不在，不看排第几。
-
-两种情况才是 Untestable：搜索没有可用响应；手头只有转帖可查，而 X 搜索从不返回转帖。
-
-保护账号，或没有帖的账号，在这项上**不算** Untestable：它们本来就不会出现在公开帖搜索里，检查把这记成搜索限制。
-
-### 3. 幽灵回复（ghost ban）
-
-看这个账号最近回复别人的对话，再按 X 提供给读者的方式把整段对话读完。回复还在，就不是幽灵。
-
-回复不在，也不立刻下结论。线拉得太长读不完，或楼主限制了谁能回复，都会让回复看起来消失。只有「对话已经读到头，回复确实不在」才叫幽灵。读不到头就换下一条；一条都证明不了，就是 Untestable。
-
-最近没有回复过别人：「没有回复可查」。这时幽灵和回复降权两项都算完成，**不算失败**，也不进分数。私密账号或没有帖时，这两项显示 Private account 或 No posts yet，而不是一个通过/失败判决。
-
-测不到客户端自己的每一种渲染差异。站点把自己的读法当成登出后的外部视角。
-
-### 4. 回复降权（reply deboosting）
-
-和幽灵用同一批回复、同一种「必须读到对话末尾」的标准。回复在按时间读到的对话里还在，但默认视图里没有，记为降权：回复还存在，只是被挪出大多数人会滑到的那一截。
-
-站点自己写了界限：这证明不了意图。互动差异本身也会改变对话排序。它看不到 X 的排序模型，分不清「算法惩罚」和「别的回复就是更相关」。
-
-## 分数怎么算
-
-方法论原句的意思是：
-
-- 分数 = 已测出结果的检查里，通过的占比。
-- 只有通过或失败进分母，每一项一样重。
-- **Untestable 完全不进分数。** 不当失败，也不当半分。
-- 四项都没有失败：结果文案是 “No shadowban detected”。
-- 至少一项失败：“Shadowban detected”，并给出限制的项数。
-- 四项都测不了：“Visibility not measurable”。这时分数留空，**不显示成 0**。0 会假装成「每项都失败」。
-
-所以 100 的意思是：这次跑成了的检查全部通过。它不是「可见性健康度 100 分」，也不是「For You 排名正常」。
-
-## 它永远看不到的
-
-方法论把界限写死了，这里保持原意：
-
-- X 不对外提供 shadowban 旗标。工具看不到内部审核分，也看不到原因码。
-- **一个观察点。** 如果 X 给不同读者的公开结果差很多，工具只看到它读到的那一份。
-- **没有原因。** 能说限制在，不能说是哪条帖、哪种行为造成的。
-- **不露在这四个表面上的限制，四项全盲。** 包括纯粹的排名下压、For You 推荐变少，但搜索建议还在、帖还搜得到、回复还在对话里。任何只读公开界面的工具都一样。
-- 只测 X。不测 Instagram、TikTok 或其他平台。
-
-Untestable 也不是中间分。常见原因是：楼主限制了回复对象，或对话太长读不完。同一次扫描里，可以有的项有判决、有的项是 Untestable。付费监控会在下一轮重试测不了的项；那是产品行为，不改变「Untestable 不进分」这条规则。
-
-## 和 Under the Hood
-
-官方入口：[https://x.com/i/jf/under_the_hood](https://x.com/i/jf/under_the_hood)。实现在 x-algorithm 的 `under-the-hood/`。它汇总的是系统打在账号和帖子上、可能影响可见性的标签。
-
-Shadowban Radar 的对照页（2026-11-02 这版页面）还写了他们从 X 的帖子和公开代码里读到的产品形态，本手册把这些句子标成**该站点的转述**，没有在本次逐项重跑 X 的资格门槛：
-
-- 给登录后的账号主人，看已经结束的那个月。
-- 他们写：账号至少 1 年、该月至少 10 条帖才看得到标签数据；报告不早于该月结束后大约 10 天。
-- 2026-09-19 起包含因法律要求的可见性限制；2026-10-30 起可以列出带标签的帖。
-- 它不做搜索测试，不做对话可见性测试，也不比较排名。
-
-两边互补，不能互相代替：
-
-| | Under the Hood | Shadowban Radar |
+| 检查 | 在看什么 | 它自己承认看不到的 |
 | --- | --- | --- |
-| 谁能看 | 账号主人，登录 | 任意公开 handle，无需登录 |
-| 时间 | 过去某一个月的标签 | 读取那一刻的公开表面 |
-| 看什么 | X 自己记下的标签 | 搜索建议、搜索、幽灵、回复降权 |
-| 看不了什么 | 今天刚发生、下个月报告才可能出现的变化；排名 | 内部标签和原因；纯排序降权 |
+| 搜索建议 | 输入 handle 时，下拉还出不出现。出现或不出现，是二元的 | 不同人会不会看到不同建议；「还在，但靠后」 |
+| 搜索 | 这个账号最近的公开帖还回不回得来。不看排第几 | 个性化的搜索名次。没有可用响应，或手头只有转帖（X 搜索不返回转帖）时，是 Untestable。保护账号或没有帖，这项记成搜索限制，不是 Untestable |
+| 幽灵回复 | 把回复所在的对话按公开方式读到头，回复还在不在 | 读不完的长楼、限制了谁能回复的楼，是 Untestable，不是失败。最近没回复过别人：这项算完成，不算失败，也不进分 |
+| 回复降权 | 同一批回复：按时间读到的全文里还在，默认视图里没有 | 证明不了意图。安静的回复被高互动回复压下去，看起来一样。这是四项里最软的一项 |
 
-一个月的报告是干净的，同时今天的四项检查失败，两件事可以同时为真。反过来也一样：四项全过，只说明这四个表面当时没测到缺失。
+每项带置信度和读取时间。搜索类检查跑起来时，站点把置信度标为高。
 
-## 和 x-algorithm：DROP 不是排序分
+## 分数，以及 Untestable
 
-可见性回答 ALLOW / NOTICE / INTERSTITIAL / DROP（客户端还有 Avoid、Downrank 等，For You 的 `VFFilter` 并不把它们当成分数）。排序回答加权预测谁更靠前。详见 [03-filters-visibility.md](03-filters-visibility.md)。
+- 分数 = 已经测出通过或失败的检查里，通过的占比。每一项一样重。
+- Untestable **不进分数**。不当失败，也不当半分。
+- 没有任何一项失败：文案是 “No shadowban detected”。
+- 至少一项失败：“Shadowban detected”，并给出项数。
+- 四项都测不了：“Visibility not measurable”。分数留空，不写成 0。
 
-对得上的只有很硬的那一层：
+所以四项全过时的满分，只说明这次测成了的检查都通过。它不是可见性健康度，也不是 For You 正常。
 
-- 搜索里整段消失、回复从对话里消失，更接近「公开表面已经不给看」。这和 DROP、墓碑、或回复被挪出默认视图是同一类现象，但工具仍然不知道内部标签的名字。
-- For You 曝光低、四项却是通过，对得上的是排序：预测概率、0.75 的站外折扣、作者衰减、48 小时、冷启动只抬到大约第 16 名。这些在四个公开检查里是隐形的。
-
-不要把 Radar 的 “Shadowban detected” 读成 x-algorithm 里某一个已公开规则被命中。规则注册表很长，而且有一部分 botmaker 规则没有公开。工具自己也说它不知道原因。
+还有一个容易看漏的洞：幽灵和回复降权如果是 Untestable，或因为最近没有回复而没进分，「No shadowban」**不能**证明回复没问题。
 
 ## ShadowCreed
 
-方法论页的计分公式里**没有**一项叫 ShadowCreed 的子分数。分数只来自上面 4 个二元检查，Untestable 除外。
+四项的计分公式里没有 ShadowCreed。它写在 [tweepcred-score](https://shadowbanradar.com/tweepcred-score)：只在四项都没有发现限制时才显示，是 0–100 的账号「权重」估计，不是封禁测试。
 
-本手册因此把任何「互动子分数 / ShadowCreed」放在更弱的一档：它不在这 4 项的计分规则里，更接近营销或启发式摘要。它弱于那 4 个可以对照公开界面复看的二元结果。不要用它解释账号是不是被限制，更不要用它解释 For You 的曝光。
+研究里记下的结构是 9 条公开信号，加总为画像 68 加活跃 32。画像看受众、Premium、关注比、账号年龄和资料是否填全。活跃看 7 日互动、是否规律，以及按体量归一后的互动和浏览。它借用 2023 年 TweepCred 和 2026 年开源 `user-cred-v2` 的形状。`user-cred-v2` 在 x-algorithm 里是关注图和互动边上的 PageRank，**不是**这个网页上的 60 分。站点写明这不是 X 的生产分。
 
-## 例子：@mate_mattt，2026 年 11 月
+因此：ShadowCreed 可以当作资料和活跃度的粗卫生检查，证据弱于那四项能复看的二元结果。不要用它解释「被限流」，更不要用它解释 For You。
 
-本报告采用的一次读数是 **No shadowban / 100**，四项 Clear。按方法论，这意味着这次测成了的检查全部通过，Untestable 没有被当成失败。
+## 误报和漏报
 
-这和「没有被公开硬限制，但早期互动不多，所以 For You 曝光不高」是一致的。下一步是内容和冷启动窗口里的真实互动，见 [04-ops-implications.md](04-ops-implications.md)。不是一套「先解封再发」的叙事。这次读数也不是 X 的官方结论，X 不确认第三方检测。
+值得用它的时候：你要的是**今天**、**任意公开账号**的答案，包括 Under the Hood 可能因账号太新或帖太少而看不到的号；你要把「搜索或回复表面坏了」和「只是没量」分开；你要留日期，过几天再测一次。
 
-## 使用时的判读
+误报更常出在这些地方：
 
-| 你看到的 | 可以怎么用 | 不要怎么用 |
+| 风险 | 原因 |
+| --- | --- |
+| 回复降权 | 默认排序不等于处罚。热闹的楼会把安静的回复压下去 |
+| 搜索瞬时失败 | 接口或数据提供方抖一下，会暂时像搜索限制 |
+| 只有一个观察点 | 建议和搜索会随读者、地区变 |
+| 保护、空号、刚改过 handle | 老工具会公开提醒结果可能错。Radar 把一部分收成 Untestable 或私密，边角仍在 |
+| 结果缓存大约 24 小时 | 他们的统计说明里提到跨日复用，判决可能是昨天的 |
+
+漏报更常出在这些地方：
+
+| 风险 | 原因 |
+| --- | --- |
+| 只限制推荐、不限制搜索 | 不关注的人的推荐里看不到，帖却仍能搜到。这接近 Under the Hood 里高召回垃圾标签的效果。Radar 可以是干净的 |
+| 排序整体变低 | Phoenix 预测不高。搜索和幽灵都不会红 |
+| 回复项没测成 | 见上一节。分数可以看起来很干净 |
+| 根本不露在这四个表面上的限制 | 方法论写了：所有只读公开界面的工具都看不见 |
+
+没有找到 2025–2026 年经过同行评议的误报率。独立比较文章把「查到了」当成排查的起点，不当成定案。HiSubway 的说明也写过：结果不是百分之百准确。
+
+## 和 Under the Hood
+
+官方入口：[https://x.com/i/jf/under_the_hood](https://x.com/i/jf/under_the_hood)，另一条路径是 <https://x.com/i/under_the_hood>。实现在 x-algorithm 的 `under-the-hood/`。
+
+Radar 对照页转述的资格（本手册没有逐项重跑这些常量）：登录后的主人；账号大约满 1 年；那个月至少 10 条帖；报告不早于该月结束后大约 10 天。它汇报标签，不做搜索测试，也不比较排名。2026-09-19 起他们写到法律要求的可见性限制，2026-10-30 起可以列出带标签的帖。这些是站点对 X 帖子和公开代码的阅读。
+
+| | Under the Hood | Shadowban Radar |
 | --- | --- | --- |
-| 四项通过，分数 100 | 当时那四个公开表面没有测到缺失 | 证明 For You 排名正常，或证明没有内部标签 |
-| 搜索或搜索建议失败，置信度高 | 公开检索表面异常，值得用第二个账号手测方法论里的手动步骤 | 当成已确认的官方处罚原因 |
-| 幽灵或回复降权，且对话已读完 | 回复表面异常的辅助证据 | 忽略站点自己写的「互动差异也会改变排序」 |
-| Untestable | 这次证据不够 | 当成失败，或当成通过 |
-| 分数空白、Visibility not measurable | 这次没测成 | 当成 0 分或「全被封」 |
-| 只有互动子分数很难看 | 可以当创作反馈，证据弱 | 当成 shadowban |
+| 来源 | 账号和帖子上的内部标签 | 公开搜索和对话 |
+| 时间 | 已经结束的那个月 | 读取的那一刻 |
+| 谁能看 | 符合条件的主人 | 任意公开 handle，无需登录 |
+| 是不是官方 | 是，透明度报告，尽力而为 | 不是 |
+| 对得上什么 | 标签带来的效果，例如不向未关注者推荐 | 搜索建议、搜索、幽灵、回复降权 |
 
-条款方向上，站点承认可能漏掉限制，X 也不为这些结果背书。本手册同样不把它当成申诉材料。
+权威顺序：X 自己的通知和 Under the Hood 标签，高于公开表面检查，高于互动启发式。第三方回答的是另一个问题。
+
+## 和 x-algorithm
+
+README 写的是：排序决定次序，一条帖能不能出现由 `visibility-filtering/` 另定。
+
+- 硬路径：`VFFilter` 丢掉 `Drop`、`Tombstone`、`NotEvaluated`。`Allow`、`Interstitial`、`Avoid`、`Downrank` 留在候选里。见 [03-filters-visibility.md](03-filters-visibility.md)。
+- 软路径：Avoid、Downrank、遮罩，再加上 Phoenix 对喜欢、回复、停留、举报的预测。多数「没流量」在这里。
+- Under the Hood 展示的是一份公开标签名单，仓库没有说那就是生产环境的全部标签。一部分 botmaker 规则没有公开。
+
+Radar 的四项，近似的是搜索索引和回复表面的一些症状。它既不等于「内部有一条 DROP 标签」，也不等于「For You 排名健康」。
+
+## 别人家的检查器
+
+同一谱系里，[shadowban.yuzurisa.com](https://shadowban.yuzurisa.com) 和 [hisubway.online/shadowban](https://hisubway.online/shadowban) 也是这四项。HiSubway 的说明写明不是百分之百准确。Circleboom 一类常常要连接 X 账号，命名不同，还有登录风险。amishadowbanned、Postory 看的面更宽，仍然是第三方。Radar 的长处是方法论写得细，并且 Untestable 不装成判决。它不因此变成官方。
+
+站点统计页 [x-shadowban-statistics](https://shadowbanradar.com/x-shadowban-statistics) 上，受检账号里大约 40%–43% 至少有一项限制。样本是自己来查的人。不要把这个比例讲成 X 上有四成账号被影子封禁。
+
+## @mate_mattt，2026-11-04
+
+结果页：<https://shadowbanradar.com/r/mate_mattt>
+
+研究记下的快照是：**No shadowban detected**，ShadowCreed **60/100 Solid**。四项没有失败。60 分是另一套公开信号估计，不是四项满分，也不是限流。同一则快照里，帖子浏览大约是粉丝数的 2.9%。这和「公开硬表面是干净的，曝光低来自排序和早期互动」一致，不是「先解封再发」。
+
+这次数字来自该日的结果页记录，不是本手册重新扫描，也不是 X 的确认。
+
+可以这样用：
+
+1. 每周，或突然搜不到、回复像消失时，再查一次。记下日期、四项各自的结论和置信度。
+2. 不要把 ShadowCreed 60 说成被限流。它至多反映资料和近期活跃。
+3. 账号若符合 Under the Hood 的条件，按月看标签名称和作用，和 Radar 交叉，不要互相覆盖。
+4. Radar 报了限制：用登出浏览器按方法论手测，再看应用内的 X 通知，然后改掉像垃圾的发法，隔日再测。
+5. Radar 干净但浏览很低：看内容、发布时间、有没有人愿意回复或把链接带走。不要走「解限」叙事。公开打分权重里也没有 Premium 乘数，不要把开会员当成排序开关。ShadowCreed 的画像分会把 Premium 算进它自己的估计，那是另一套账。
+6. 不要在公开场合说「X 官方确认影子封禁」，如果唯一依据是 Radar。
+7. 优先用不需要登录的检查。没有必要，不要把运营账号授给要 OAuth 的检查器。
+
+## 来源
+
+- <https://shadowbanradar.com/>
+- <https://shadowbanradar.com/methodology>
+- <https://shadowbanradar.com/r/mate_mattt>
+- <https://shadowbanradar.com/x-under-the-hood>
+- <https://shadowbanradar.com/x-shadowban-statistics>
+- <https://shadowbanradar.com/tweepcred-score>
+- <https://shadowbanradar.com/best-x-shadowban-checkers>
+- <https://x.com/i/under_the_hood>
+- <https://x.com/i/jf/under_the_hood>
+- <https://github.com/xai-org/x-algorithm>
+- <https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/home-mixer/filters/vf_filter.rs>
+- <https://roboin.io/article/en/2026/09/04/checking-xs-official-shadowban-checker-under-the-hood/>
+- <https://nav-ai.net/ai/shadowban-radar>
+- <https://hisubway.online/articles/sbhelp/>
+- <https://amishadowbanned.com/best-twitter-shadowban-checker>
+- <https://tech-ish.com/2026/08/14/inside-xs-newly-published-visibility-filtering-code/>
+- <https://help.x.com/rules-and-policies/x-reach-limited>

@@ -277,15 +277,15 @@
 
     <section class="section wrap" id="radar">
       <h2>7 · Shadowban Radar 能证明什么</h2>
-      <p class="sub">方法论 <a href="https://shadowbanradar.com/methodology">shadowbanradar.com/methodology</a> · 笔记 <a href="https://github.com/mate-matt/x-foryou-playbook/blob/main/docs/05-shadowban-radar.md">docs/05-shadowban-radar.md</a></p>
+      <p class="sub">2026-11-04 评估，置信度中等。全文在 <a href="https://github.com/mate-matt/x-foryou-playbook/blob/main/docs/05-shadowban-radar.md">docs/05-shadowban-radar.md</a>。方法论 <a href="https://shadowbanradar.com/methodology">methodology</a></p>
       <div class="verdict">
         <article class="v-card yes">
           <h3>可以用</h3>
-          <p>四个公开表面的辅助证据：搜索建议、帖还能不能被搜到、回复是不是从对话里消失、回复是不是被挪出默认视图。通过就是通过，失败就是当时那份公开输出里缺了。</p>
+          <p>一份带日期的公开表面快照：搜索建议、帖还能不能被搜到、回复是不是从对话里消失、回复是不是被挪出默认视图。证据不够就标 Untestable。适合当辅助证据和排查开关。</p>
         </article>
         <article class="v-card no">
           <h3>不能用来</h3>
-          <p>证明官方有一个叫 shadowban 的开关。解释四项都 Clear 时的 For You 低曝光。把 Untestable 当成失败。用互动子分数代替那四项二元检查。</p>
+          <p>证明官方执法或内部可见性标签。解释四项都通过时的 For You 低曝光。把 Untestable 当成失败。把 ShadowCreed 当成限流判决。把来查的人里大约 40% 的比例说成全站患病率。</p>
         </article>
       </div>
       <article class="ticket">
@@ -305,14 +305,15 @@
         <p>分数是<strong>测出了结果的检查里，通过的占比</strong>。Untestable 不进分子也不进分母。四项都没失败，文案是 “No shadowban detected”。四项都测不了，分数留空，不显示成 0。保护账号或没有帖，搜索项会记成限制，而不是 Untestable。</p>
         <p>一个观察点，没有原因码，看不见内部标签。纯粹的排名下压，只要搜索和建议还在、回复还在对话里，四项全是隐形的。这和 x-algorithm 的分界一致：可见性 DROP 是「不给看」，排序分是「给看的时候谁在前」。</p>
         <p>Under the Hood 是登录后、给主人看的某一个月的标签。Radar 是任意公开账号、读取那一刻的四个表面。一个月的报告是干净的，同时今天搜索失败，两件事可以同时为真。站点对照页还转述了「大约满 1 年、该月至少 10 条帖、月末后再等约 10 天」这类资格条件，那是他们的阅读，本页不把它写成重新核对过的 X 常量。</p>
-        <p>方法论的计分里没有 ShadowCreed。任何互动子分数都不在这四项里，证据更弱，不能拿来下「被限制」的结论，更不能拿来解释推荐曝光。</p>
+        <p>误报更多来自回复降权（热闹的楼会压住安静回复）和搜索的瞬时失败。漏报更多来自「只限制推荐、帖却仍能搜到」，以及 Phoenix 排序变低。幽灵或降权如果是 Untestable，「No shadowban」不能证明回复没问题。</p>
+        <p><a href="https://shadowbanradar.com/tweepcred-score">ShadowCreed</a> 不在四项计分里。只在没有发现限制时显示，是画像 68 加活跃 32 的公开信号估计，借用 TweepCred 和 <code>user-cred-v2</code> 的形状，不是 X 的生产分，也不是 DROP 标签。</p>
       </article>
       <article class="ticket">
         <span class="pin" aria-hidden="true"></span>
         <span class="tag blue">例子</span>
-        <h3>@mate_mattt · 2026 年 11 月</h3>
-        <p>本报告采用的一次读数是 <strong>No shadowban / 100</strong>，四项 Clear。按方法论，这只说明那次测成了的检查全部通过。</p>
-        <p>它和「没有公开硬限制，但早期互动不多，所以 For You 不高」可以同时成立。下一步是内容和冷启动那两小时里的真实互动，不是「先解封」。这不是 X 的确认，这次手册也没有重新扫描这个账号。</p>
+        <h3>@mate_mattt · 2026-11-04</h3>
+        <p>结果页 <a href="https://shadowbanradar.com/r/mate_mattt">/r/mate_mattt</a> 的记录是 <strong>No shadowban detected</strong>，ShadowCreed <strong>60/100 Solid</strong>。四项没有失败。60 分是另一套估计，不是四项满分，也不是限流。同一则快照里，浏览大约是粉丝数的 2.9%，对得上排序和早期互动，对不上「先解封」。</p>
+        <p>这不是 X 的确认，本手册也没有重新扫描。数字和边界写在 <a href="https://github.com/mate-matt/x-foryou-playbook/blob/main/docs/05-shadowban-radar.md">研究笔记</a>。</p>
       </article>
     </section>
 
@@ -324,6 +325,9 @@
           <a href="https://github.com/xai-org/x-algorithm">x-algorithm 仓库</a>
           <a href="https://x.com/i/jf/under_the_hood">Under the Hood</a>
           <a href="https://shadowbanradar.com/methodology">Shadowban Radar 方法论</a>
+          <a href="https://shadowbanradar.com/r/mate_mattt">@mate_mattt 结果页</a>
+          <a href="https://shadowbanradar.com/tweepcred-score">ShadowCreed / TweepCred</a>
+          <a href="https://shadowbanradar.com/x-shadowban-statistics">受检样本统计</a>
           <a href="https://shadowbanradar.com/x-under-the-hood">Radar 与 Under the Hood</a>
           <a href="https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/docs/BIDIRECTIONAL_BOOST_CHANGE.md">BIDIRECTIONAL_BOOST_CHANGE.md</a>
           <a href="https://github.com/xai-org/x-algorithm/blob/b220448766ab4ee4c83d58a67d51f0cb5bda86c2/home-mixer/params/param.rs">param.rs</a>

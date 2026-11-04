@@ -6,7 +6,7 @@
 
 本站和这些 Markdown 是独立解说，许可见仓库根目录 `LICENSE`（MIT）。x-algorithm 本身是 Apache-2.0。解说里的标识符、默认值和公式对应它的公开源码，不是 X 或 xAI 的官方文档。
 
-中文是直接按源码写的。环境里没有可用的 Gemini CLI（`agy` / `gemini` 均不存在，也没有 API 密钥），所以没有做单独的 Gemini 润色。
+中文是直接写的。2026-11-04 再次查找，环境里仍没有 `agy` / `gemini`，也没有 API 密钥，Shadowban 一章没有做 Gemini 润色。
 
 ## 算法
 
@@ -54,5 +54,5 @@
 - 来源上限：Thunder 1200、Phoenix 1000、TweetMixer 800 且默认关、SimClusters 常量 800、Popular 500。
 - `VFFilter` 不丢弃 Interstitial、Avoid、Downrank。
 - Premium / Blue 不在公开打分权重里。
-- Radar 的四项、Untestable 不进分、100 与 “No shadowban detected” 的含义，来自方法论页。
-- @mate_mattt 的 100 分是本报告采用的 2026-11 读数例子，不是这次重新扫描的结果。
+- Radar 的四项、Untestable 不进分、“No shadowban detected” 的含义，来自方法论页（2026-11-04 再次核对）。
+- ShadowCreed 为画像 68 + 活跃 32、仅在四项干净时显示、@mate_mattt 为 No shadowban detected 与 60/100 Solid、浏览约粉丝数的 2.9%、受检样本约 40%–43%，来自 2026-11-04 的可靠性评估及其所引结果页、tweepcred-score 与统计页。不是本手册重新扫描。
