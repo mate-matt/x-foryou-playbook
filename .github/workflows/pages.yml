@@ -1,8 +1,10 @@
 name: Publish GitHub Pages
 
+# Pages must be enabled once in the repo settings (Source: GitHub Actions)
+  # before this workflow can create a deployment. It is manual so a missing
+  # setting does not fail every push. Branch publishing from main / (root)
+  # also serves this site and does not need this workflow.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

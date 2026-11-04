@@ -29,7 +29,13 @@
 python3 -m http.server 8080
 ```
 
-GitHub Pages 从 `main` 分支的根目录发布。
+站点文件已经在 `main` 的根目录。当前令牌没有仓库管理权限，Pages 设置接口返回 403，所以线上地址还要在仓库里打开一次：
+
+1. 打开 <https://github.com/mate-matt/x-foryou-playbook/settings/pages>
+2. Build and deployment 选 **Deploy from a branch**
+3. Branch 选 `main`，文件夹选 `/ (root)`，保存
+
+保存后的地址是 <https://mate-matt.github.io/x-foryou-playbook/>。若改成 GitHub Actions 作为来源，可手动运行 `.github/workflows/pages.yml`。在设置打开之前，这个地址会是 404。
 
 ## 关于中文
 
